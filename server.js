@@ -1,13 +1,138 @@
+// server.js
+// NextUp backend with simple SaaS signup (Phase 1)
+
 const express = require("express");
 const cors = require("cors");
+const { Pool } = require("pg");
+const crypto = require("crypto");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
+// ---------- DATABASE SETUP ----------
 
-const shops = {
+// Connect to PostgreSQL using DATABASE_URL from Render
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("localhost")
+    ? { rejectUnauthorized: false }
+    : false
+});
+
+// Create 'shops' table if it doesn't exist
+async function initDb() {
+  const sql = `
+    CREATE TABLE IF NOT EXISTS shops (
+      id SERIAL PRIMARY KEY,
+      shop_id TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      owner_email TEXT NOT NULL,
+      admin_secret TEXT NOT NULL,
+      subscription_status TEXT NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `;
+  await pool.query(sql);
+  console.log("✅ shops table ready");
+}
+
+initDb().catch(err => {
+  console.error("Error initializing database:", err);
+});
+
+// Helper to slugify shop name into a shop_id
+function makeShopId(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+// ---------- HEALTH CHECK ----------
+
+app.get("/health", async (req, res) => {
+  try {
+    // simple DB check
+    await pool.query("SELECT 1");
+    res.json({ status: "ok", db: "ok", uptime: process.uptime() });
+  } catch (err) {
+    console.error("Health DB error:", err);
+    res.status(500).json({ status: "error", db: "error" });
+  }
+});
+
+// ---------- SIMPLE SAAS SIGNUP ----------
+
+// POST /api/shops/signup
+// Body: { shopName: string, ownerEmail: string }
+app.post("/api/shops/signup", async (req, res) => {
+  const { shopName, ownerEmail } = req.body || {};
+
+  if (!shopName || !ownerEmail) {
+    return res.status(400).json({ error: "missing_fields" });
+  }
+
+  const shopId = makeShopId(shopName);
+  const adminSecret = crypto.randomBytes(16).toString("hex");
+
+  try {
+    const insertSql = `
+      INSERT INTO shops (shop_id, name, owner_email, admin_secret, subscription_status)
+      VALUES ($1, $2, $3, $4, 'pending')
+      RETURNING shop_id, name, owner_email, admin_secret, subscription_status, created_at
+    `;
+    const result = await pool.query(insertSql, [
+      shopId,
+      shopName,
+      ownerEmail,
+      adminSecret
+    ]);
+
+    const row = result.rows[0];
+
+    // For now we just return the details; later you can hook Stripe here.
+    res.json({
+      ok: true,
+      shopId: row.shop_id,
+      shopName: row.name,
+      ownerEmail: row.owner_email,
+      adminSecret: row.admin_secret,
+      subscriptionStatus: row.subscription_status,
+      createdAt: row.created_at
+    });
+  } catch (err) {
+    console.error("Error inserting shop:", err);
+
+    // 23505 = unique_violation in Postgres (shop_id already exists)
+    if (err.code === "23505") {
+      return res.status(409).json({
+        error: "shop_id_exists",
+        shopId
+      });
+    }
+
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+// GET /api/shops
+// Simple list of all shops (for now, no auth – ok for testing)
+app.get("/api/shops", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT shop_id, name, owner_email, subscription_status, created_at FROM shops ORDER BY created_at DESC"
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error listing shops:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+// ---------- DEMO IN-MEMORY DATA (still here for testing) ----------
+
+const demoShops = {
   "demo-shop": {
     id: "demo-shop",
     name: "NextUp Demo Shop",
@@ -22,7 +147,7 @@ const shops = {
   }
 };
 
-const appointments = {
+const demoAppointments = {
   "demo-shop": [
     {
       id: "a1",
@@ -37,23 +162,20 @@ const appointments = {
   ]
 };
 
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", uptime: process.uptime() });
-});
-
+// Old demo route – still works:
 app.get("/shops/:shopId/config", (req, res) => {
-  const shop = shops[req.params.shopId];
+  const shop = demoShops[req.params.shopId];
   if (!shop) return res.status(404).json({ error: "Shop not found" });
   res.json(shop);
 });
 
 app.get("/shops/:shopId/appointments", (req, res) => {
-  res.json(appointments[req.params.shopId] || []);
+  res.json(demoAppointments[req.params.shopId] || []);
 });
 
 app.post("/shops/:shopId/appointments", (req, res) => {
   const shopId = req.params.shopId;
-  const shop = shops[shopId];
+  const shop = demoShops[shopId];
   if (!shop) return res.status(404).json({ error: "Shop not found" });
 
   const { clientName, clientPhone, barberId, serviceId, dateISO, isWalkIn } = req.body;
@@ -69,12 +191,15 @@ app.post("/shops/:shopId/appointments", (req, res) => {
     status: "waiting"
   };
 
-  if (!appointments[shopId]) appointments[shopId] = [];
-  appointments[shopId].push(newAppt);
+  if (!demoAppointments[shopId]) demoAppointments[shopId] = [];
+  demoAppointments[shopId].push(newAppt);
 
   res.status(201).json(newAppt);
 });
 
+// ---------- START SERVER ----------
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`NextUp backend running on port ${PORT}`);
 });
