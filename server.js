@@ -1,5 +1,5 @@
 // server.js
-// NextUp backend with simple SaaS signup (Phase 1)
+// NextUp backend with simple SaaS signup (Phase 1) + admin config endpoint
 
 const express = require("express");
 const cors = require("cors");
@@ -53,7 +53,6 @@ function makeShopId(name) {
 
 app.get("/health", async (req, res) => {
   try {
-    // simple DB check
     await pool.query("SELECT 1");
     res.json({ status: "ok", db: "ok", uptime: process.uptime() });
   } catch (err) {
@@ -91,7 +90,6 @@ app.post("/api/shops/signup", async (req, res) => {
 
     const row = result.rows[0];
 
-    // For now we just return the details; later you can hook Stripe here.
     res.json({
       ok: true,
       shopId: row.shop_id,
@@ -104,7 +102,6 @@ app.post("/api/shops/signup", async (req, res) => {
   } catch (err) {
     console.error("Error inserting shop:", err);
 
-    // 23505 = unique_violation in Postgres (shop_id already exists)
     if (err.code === "23505") {
       return res.status(409).json({
         error: "shop_id_exists",
@@ -117,7 +114,7 @@ app.post("/api/shops/signup", async (req, res) => {
 });
 
 // GET /api/shops
-// Simple list of all shops (for now, no auth – ok for testing)
+// Simple list of all shops
 app.get("/api/shops", async (req, res) => {
   try {
     const result = await pool.query(
@@ -126,6 +123,46 @@ app.get("/api/shops", async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error("Error listing shops:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+// ---------- ADMIN CONFIG ENDPOINT ----------
+// GET /api/shops/:shopId/config?adminSecret=...
+// Used by the iPad app to log in as a shop admin.
+
+app.get("/api/shops/:shopId/config", async (req, res) => {
+  const shopId = req.params.shopId;
+  const adminSecret = req.query.adminSecret;
+
+  if (!adminSecret) {
+    return res.status(400).json({ error: "missing_admin_secret" });
+  }
+
+  try {
+    const result = await pool.query(
+      "SELECT shop_id, name, subscription_status, admin_secret FROM shops WHERE shop_id = $1",
+      [shopId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "shop_not_found" });
+    }
+
+    const row = result.rows[0];
+
+    if (row.admin_secret !== adminSecret) {
+      return res.status(401).json({ error: "invalid_admin_secret" });
+    }
+
+    res.json({
+      ok: true,
+      shopId: row.shop_id,
+      shopName: row.name,
+      subscriptionStatus: row.subscription_status
+    });
+  } catch (err) {
+    console.error("Error in admin config:", err);
     res.status(500).json({ error: "server_error" });
   }
 });
@@ -162,7 +199,6 @@ const demoAppointments = {
   ]
 };
 
-// Old demo route – still works:
 app.get("/shops/:shopId/config", (req, res) => {
   const shop = demoShops[req.params.shopId];
   if (!shop) return res.status(404).json({ error: "Shop not found" });
