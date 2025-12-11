@@ -712,13 +712,401 @@ function dashboardShopHTML(shop, message) {
   });
 }
 
+function marketingPageHTML() {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>NextUp · Smart queue for barbershops</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root {
+      --bg: #050505;
+      --fg: #f5f5f5;
+      --muted: #a1a1a1;
+      --card: #0b0b0c;
+      --border: #262626;
+      --pill: #111111;
+      --accent: #ffffff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+      background: radial-gradient(circle at top, #111111 0, #050505 60%);
+      color: var(--fg);
+      display: flex;
+      justify-content: center;
+      padding: 32px 16px;
+    }
+
+    .shell {
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+      gap: 24px;
+      align-items: center;
+    }
+
+    @media (max-width: 768px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .logo-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: 600;
+      background: #050505;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--pill);
+      border: 1px solid var(--border);
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    h1 {
+      font-size: 2.1rem;
+      letter-spacing: 0.02em;
+      margin: 0 0 8px;
+    }
+
+    .hero-subtitle {
+      font-size: 0.95rem;
+      color: var(--muted);
+      max-width: 26rem;
+      margin-bottom: 16px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .btn {
+      border-radius: 999px;
+      border: 1px solid var(--accent);
+      padding: 10px 18px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--fg);
+    }
+
+    .hero-note {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .card {
+      background: rgba(11,11,12,0.95);
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      padding: 18px 16px;
+    }
+
+    .card-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .card-big {
+      font-size: 0.95rem;
+      margin-bottom: 6px;
+    }
+
+    .card-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .card-list li {
+      margin-bottom: 4px;
+    }
+
+    .section-title {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .section-header h2 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .section-header p {
+      margin: 0;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    @media (max-width: 768px) {
+      .grid-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .feature-card {
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      padding: 12px 11px;
+      font-size: 0.8rem;
+    }
+
+    .feature-title {
+      font-size: 0.82rem;
+      margin-bottom: 4px;
+    }
+
+    .feature-text {
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 768px) {
+      .steps {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .step-pill {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+
+    .footer {
+      font-size: 0.75rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+      margin-top: 4px;
+    }
+
+    a.text-link {
+      color: var(--fg);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(255,255,255,0.16);
+      padding-bottom: 1px;
+    }
+
+    a.text-link:hover {
+      border-bottom-color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+
+    <!-- HERO -->
+    <section class="hero">
+      <div>
+        <div class="logo-row">
+          <div class="logo-mark">N</div>
+          <div style="font-size:0.82rem; color:var(--muted); letter-spacing:0.16em; text-transform:uppercase;">
+            NextUp · Barber Queue
+          </div>
+        </div>
+        <div class="pill">
+          <span class="pill-dot"></span>
+          <span>Built for barbershops</span>
+        </div>
+        <h1>Queue smarter. Cut faster.</h1>
+        <p class="hero-subtitle">
+          NextUp keeps your chairs full, your TV board clean, and your customers in the loop — all from one iPad.
+        </p>
+        <div class="hero-actions">
+          <a href="/signup" class="btn btn-primary">
+            Get started for your shop
+          </a>
+          <a href="/dashboard" class="btn btn-ghost">
+            Owner login
+          </a>
+        </div>
+        <p class="hero-note">
+          No long setup. Shops get a booking link, admin dashboard, and in-shop display in minutes.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Live in-shop view</div>
+        <div class="card-big">What your iPad + TV can show:</div>
+        <ul class="card-list">
+          <li>• Current and next clients per barber</li>
+          <li>• Walk-ins and appointments in one queue</li>
+          <li>• QR code so clients can book from their phone</li>
+          <li>• Simple status: waiting · in chair · done</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section>
+      <div class="section-header">
+        <div>
+          <div class="section-title">Why NextUp</div>
+          <h2>Made for barbers, not spreadsheets.</h2>
+        </div>
+        <p>NextUp replaces the whiteboard, the sticky notes, and the “who’s next?” arguments.</p>
+      </div>
+
+      <div class="grid-3">
+        <div class="feature-card">
+          <div class="feature-title">Fast shop setup</div>
+          <div class="feature-text">
+            Create your shop once. Get a booking link, dashboard, and TV-ready queue without hiring a developer.
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-title">Online + walk-ins together</div>
+          <div class="feature-text">
+            Customers can book from your link while walk-ins are added from the iPad. Everyone lands in the same queue.
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-title">TV-mode built in</div>
+          <div class="feature-text">
+            Mirror your iPad to a TV and show a clean “who’s next” board with your logo and colors.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section>
+      <div class="section-header">
+        <div>
+          <div class="section-title">How it works</div>
+          <h2>Three simple steps to go live.</h2>
+        </div>
+      </div>
+
+      <div class="steps">
+        <div>
+          <div class="step-pill">Step 1</div>
+          <p><strong>Create your shop</strong> on the web with your name, email, and basic details. We give you a shop ID and admin key.</p>
+        </div>
+        <div>
+          <div class="step-pill">Step 2</div>
+          <p><strong>Connect the iPad app</strong> by pasting your shop ID and key into the Cloud tab. Your barbers and services sync in.</p>
+        </div>
+        <div>
+          <div class="step-pill">Step 3</div>
+          <p><strong>Share your booking link</strong> on Instagram, Google, or by QR code in the shop. New bookings appear right in NextUp.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <span>NextUp · Barber Queue</span>
+      <span>
+        <a href="/signup" class="text-link">Set up a shop</a>
+        &nbsp;&middot;&nbsp;
+        <a href="/dashboard" class="text-link">Owner login</a>
+      </span>
+    </footer>
+
+  </div>
+</body>
+</html>`;
+}
+
 // =====================
 // Routes
 // =====================
 
-// Root → signup for now
+// Root → marketing homepage
 app.get("/", (req, res) => {
-  res.redirect("/signup");
+  res.send(marketingPageHTML());
 });
 
 // ----- Signup -----
