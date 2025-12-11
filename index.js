@@ -1,5 +1,6 @@
 // index.js
-// Simple NextUp backend: shop signup, customer booking page, and API for the iPad app.
+// NextUp backend – shop signup, customer booking, simple web dashboard
+// for managing barbers & services, plus APIs for the iPad app.
 
 const express = require("express");
 const app = express();
@@ -10,13 +11,64 @@ const PORT = process.env.PORT || 3000;
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// --- In-memory data (for now) ---
-// This will reset when Render restarts. Later we'll move to Postgres.
+// =====================
+// In-memory data (for now)
+// =====================
+//
+// NOTE: This all resets if Render restarts.
+// Later we’ll move to a real database.
+// ---------------------
 
-const shops = [];      // { id, name, ownerName, email, createdAt }
-const bookings = [];   // { id, shopId, clientName, clientPhone, barberName, serviceName, isoDateTime, notes }
+/**
+ * @typedef {Object} Barber
+ * @property {string} id
+ * @property {string} name
+ */
 
-// --- Helpers ---
+/**
+ * @typedef {Object} Service
+ * @property {string} id
+ * @property {string} name
+ * @property {number} durationMinutes
+ * @property {number} price
+ * @property {boolean} isActive
+ */
+
+/**
+ * @typedef {Object} Shop
+ * @property {string} id
+ * @property {string} name
+ * @property {string} email
+ * @property {string} [ownerName]
+ * @property {string} [city]
+ * @property {string} adminSecret
+ * @property {string} createdAt
+ * @property {Barber[]} barbers
+ * @property {Service[]} services
+ */
+
+ /** @type {Shop[]} */
+const shops = [];
+
+/**
+ * Bookings are separate so they don’t vanish when config changes
+ * @typedef {Object} Booking
+ * @property {string} id
+ * @property {string} shopId
+ * @property {string} clientName
+ * @property {string} clientPhone
+ * @property {string|null} barberName
+ * @property {string} serviceName
+ * @property {string} isoDateTime
+ * @property {string|null} notes
+ */
+
+/** @type {Booking[]} */
+const bookings = [];
+
+// =====================
+// Helpers
+// =====================
 
 function generateId(prefix) {
   return (
@@ -58,7 +110,7 @@ function htmlPage({ title, body }) {
   }
   .shell {
     width: 100%;
-    max-width: 420px;
+    max-width: 480px;
   }
   .card {
     background: var(--card);
@@ -121,9 +173,7 @@ function htmlPage({ title, body }) {
     cursor: pointer;
     margin-top: 4px;
   }
-  button:hover {
-    filter: brightness(1.08);
-  }
+  button:hover { filter: brightness(1.08); }
   .pill {
     display: inline-flex;
     align-items: center;
@@ -147,11 +197,6 @@ function htmlPage({ title, body }) {
     color: var(--text-muted);
     margin-top: 8px;
   }
-  .field-group {
-    display: flex;
-    gap: 8px;
-  }
-  .field-group > div { flex: 1; }
   .message {
     font-size: 0.8rem;
     padding: 7px 10px;
@@ -166,6 +211,11 @@ function htmlPage({ title, body }) {
     border-color: rgba(220,38,38,0.4);
     color: #fecaca;
   }
+  .field-group {
+    display: flex;
+    gap: 8px;
+  }
+  .field-group > div { flex: 1; }
   code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-size: 0.75rem;
@@ -174,8 +224,23 @@ function htmlPage({ title, body }) {
     background: rgba(15,23,42,0.9);
     border: 1px dashed rgba(148,163,184,0.5);
   }
-  a {
-    color: #a5b4fc;
+  a { color: #a5b4fc; }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+  }
+  .chip {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(148,163,184,0.4);
+    color: var(--text-muted);
+  }
+  .muted {
+    color: var(--text-muted);
   }
 </style>
 </head>
@@ -189,7 +254,48 @@ function htmlPage({ title, body }) {
 </html>`;
 }
 
-// --- Signup pages ---
+// Seed some default barbers/services for a new shop
+function defaultBarbers() {
+  return [
+    { id: generateId("barber"), name: "Any barber" },
+    { id: generateId("barber"), name: "Chair 1" },
+    { id: generateId("barber"), name: "Chair 2" }
+  ];
+}
+
+function defaultServices() {
+  return [
+    {
+      id: generateId("svc"),
+      name: "Regular cut",
+      durationMinutes: 30,
+      price: 25,
+      isActive: true
+    },
+    {
+      id: generateId("svc"),
+      name: "Fade & beard",
+      durationMinutes: 45,
+      price: 35,
+      isActive: true
+    },
+    {
+      id: generateId("svc"),
+      name: "Beard trim",
+      durationMinutes: 20,
+      price: 15,
+      isActive: true
+    }
+  ];
+}
+
+function findShop(shopId) {
+  return shops.find((s) => s.id === shopId);
+}
+
+// =====================
+// Signup pages
+// =====================
 
 function signupFormHTML(message) {
   return htmlPage({
@@ -228,7 +334,7 @@ function signupFormHTML(message) {
   });
 }
 
-function signupSuccessHTML(shop, adminSecret, bookingUrl, apiUrl) {
+function signupSuccessHTML(shop, bookingUrl, apiUrl, dashboardUrl) {
   return htmlPage({
     title: "NextUp · Shop Ready",
     body: `
@@ -257,7 +363,7 @@ function signupSuccessHTML(shop, adminSecret, bookingUrl, apiUrl) {
       <div style="margin-bottom: 10px;">
         <label>Admin secret</label>
         <div class="small" style="margin-top:4px; margin-bottom:4px;">Keep this private. Paste into the Cloud tab as the admin secret.</div>
-        <code>${adminSecret}</code>
+        <code>${shop.adminSecret}</code>
       </div>
 
       <div style="margin-bottom: 10px;">
@@ -266,11 +372,20 @@ function signupSuccessHTML(shop, adminSecret, bookingUrl, apiUrl) {
         <code>${apiUrl}</code>
       </div>
 
+      <div style="margin-bottom: 10px;">
+        <label>Manage barbers & services</label>
+        <div class="small" style="margin-top:4px; margin-bottom:4px;">
+          Go here to edit barbers, services, prices and durations.
+        </div>
+        <code>${dashboardUrl}</code>
+      </div>
+
       <div class="small" style="margin-top:12px;">
         Next steps:<br/>
         1️⃣ Paste Shop ID + Admin secret into the <strong>Cloud</strong> tab in the NextUp iPad app.<br/>
         2️⃣ Turn on “Enable cloud sync”.<br/>
-        3️⃣ Use this booking link wherever your clients find you.
+        3️⃣ Use this booking link wherever your clients find you.<br/>
+        4️⃣ Use the dashboard link to manage barbers & services.
       </div>
 
       <div class="small" style="margin-top:14px;">
@@ -280,7 +395,9 @@ function signupSuccessHTML(shop, adminSecret, bookingUrl, apiUrl) {
   });
 }
 
-// --- Booking page ---
+// =====================
+// Booking pages
+// =====================
 
 function bookingFormHTML(shop, message) {
   return htmlPage({
@@ -304,12 +421,34 @@ function bookingFormHTML(shop, message) {
         </div>
         <div class="field-group">
           <div>
-            <label>Preferred barber (optional)</label>
-            <input name="barberName" placeholder="Any / Mike / Alex" />
+            <label>Preferred barber</label>
+            <select name="barberName">
+              <option value="">Any barber</option>
+              ${shop.barbers
+                .map(
+                  (b) =>
+                    `<option value="${b.name.replace(
+                      /"/g,
+                      "&quot;"
+                    )}">${b.name}</option>`
+                )
+                .join("")}
+            </select>
           </div>
           <div>
             <label>Service</label>
-            <input name="serviceName" placeholder="Regular cut, Fade, etc." required />
+            <select name="serviceName" required>
+              ${shop.services
+                .filter((s) => s.isActive)
+                .map(
+                  (s) =>
+                    `<option value="${s.name.replace(
+                      /"/g,
+                      "&quot;"
+                    )}">${s.name}</option>`
+                )
+                .join("")}
+            </select>
           </div>
         </div>
         <div class="field-group">
@@ -358,19 +497,187 @@ function bookingThanksHTML(shop) {
   });
 }
 
-// --- Routes ---
+// =====================
+// Dashboard pages (barbers & services)
+// =====================
 
-// Redirect root → signup for now
+function dashboardLoginHTML(message) {
+  return htmlPage({
+    title: "NextUp · Owner Login",
+    body: `
+      <div class="pill">
+        <span class="pill-dot"></span>
+        <span>Owner dashboard</span>
+      </div>
+      <h1>Manage your shop</h1>
+      <div class="subtitle">Log in to edit barbers and services.</div>
+      ${message ? `<div class="message error">${message}</div>` : ""}
+      <form method="POST" action="/dashboard">
+        <div>
+          <label>Contact email</label>
+          <input name="email" type="email" placeholder="shop@email.com" required />
+        </div>
+        <div>
+          <label>Shop ID</label>
+          <input name="shopId" placeholder="shop_xxx..." required />
+        </div>
+        <div>
+          <label>Admin secret</label>
+          <input name="adminSecret" placeholder="secret_xxx..." required />
+        </div>
+        <button type="submit">Open dashboard</button>
+        <div class="small">
+          You’ll find Shop ID and Admin secret on your signup success page.
+        </div>
+      </form>
+    `
+  });
+}
+
+function dashboardShopHTML(shop, message) {
+  return htmlPage({
+    title: `Dashboard · ${shop.name}`,
+    body: `
+      <div class="pill">
+        <span class="pill-dot"></span>
+        <span>Dashboard · ${shop.name}</span>
+      </div>
+      <h1>Barbers & services</h1>
+      <div class="subtitle">These changes will feed into your NextUp app and booking link.</div>
+      ${message ? `<div class="message">${message}</div>` : ""}
+
+      <div style="margin-bottom:12px;">
+        <div class="row">
+          <span class="muted">Shop ID:</span>
+          <code>${shop.id}</code>
+        </div>
+        <div class="row">
+          <span class="muted">Admin secret:</span>
+          <code>${shop.adminSecret}</code>
+        </div>
+      </div>
+
+      <h2 style="font-size:0.9rem; margin-top:6px;">Barbers</h2>
+      <div class="small" style="margin-bottom:6px;">
+        These names appear in the app and on your booking page.
+      </div>
+      ${
+        shop.barbers.length === 0
+          ? `<div class="small muted">No barbers yet. Add your first barber below.</div>`
+          : shop.barbers
+              .map(
+                (b) => `
+        <form method="POST" action="/dashboard/shops/${shop.id}/barbers/delete" style="margin:0; padding:4px 0; display:flex; align-items:center; gap:8px;">
+          <input type="hidden" name="barberId" value="${b.id}" />
+          <span style="flex:1;">${b.name}</span>
+          <button type="submit" style="background:#111827; border-radius:999px; padding:4px 10px; font-size:0.75rem;">Remove</button>
+        </form>
+      `
+              )
+              .join("")
+      }
+
+      <form method="POST" action="/dashboard/shops/${shop.id}/barbers/add" style="margin-top:8px;">
+        <label>Add barber</label>
+        <div class="field-group">
+          <div>
+            <input name="name" placeholder="New barber name" required />
+          </div>
+        </div>
+        <button type="submit">Add barber</button>
+      </form>
+
+      <hr style="margin:18px 0; border:none; border-top:1px solid rgba(148,163,184,0.2);" />
+
+      <h2 style="font-size:0.9rem; margin-top:0;">Services</h2>
+      <div class="small" style="margin-bottom:6px;">
+        Active services appear in the customer form and the app.
+      </div>
+      ${
+        shop.services.length === 0
+          ? `<div class="small muted">No services yet. Add your first service below.</div>`
+          : shop.services
+              .map(
+                (s) => `
+        <form method="POST" action="/dashboard/shops/${shop.id}/services/update" style="margin:0; padding:4px 0;">
+          <input type="hidden" name="serviceId" value="${s.id}" />
+          <div class="row">
+            <strong>${s.name}</strong>
+            <span class="chip">${s.isActive ? "Active" : "Hidden"}</span>
+          </div>
+          <div class="row">
+            <span class="muted">Duration</span>
+            <input name="durationMinutes" value="${s.durationMinutes}" style="max-width:80px;" />
+          </div>
+          <div class="row">
+            <span class="muted">Price</span>
+            <input name="price" value="${s.price}" style="max-width:80px;" />
+          </div>
+          <div class="row">
+            <span class="muted">Status</span>
+            <select name="isActive" style="max-width:120px;">
+              <option value="true"${s.isActive ? " selected" : ""}>Active</option>
+              <option value="false"${!s.isActive ? " selected" : ""}>Hidden</option>
+            </select>
+          </div>
+          <div class="row" style="margin-top:4px;">
+            <button type="submit">Save changes</button>
+            <form method="POST" action="/dashboard/shops/${shop.id}/services/delete">
+              <input type="hidden" name="serviceId" value="${s.id}" />
+            </form>
+          </div>
+        </form>
+      `
+              )
+              .join("")
+      }
+
+      <form method="POST" action="/dashboard/shops/${shop.id}/services/add" style="margin-top:8px;">
+        <label>Add service</label>
+        <div class="field-group">
+          <div>
+            <input name="name" placeholder="Service name" required />
+          </div>
+          <div>
+            <input name="durationMinutes" placeholder="Minutes" />
+          </div>
+        </div>
+        <div class="field-group">
+          <div>
+            <input name="price" placeholder="Price" />
+          </div>
+          <div>
+            <select name="isActive">
+              <option value="true" selected>Active</option>
+              <option value="false">Hidden</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit">Add service</button>
+      </form>
+
+      <div class="small" style="margin-top:12px;">
+        Changes here will be reflected in your iPad app and booking form (after the app syncs).
+      </div>
+    `
+  });
+}
+
+// =====================
+// Routes
+// =====================
+
+// Root → signup for now
 app.get("/", (req, res) => {
   res.redirect("/signup");
 });
 
-// Show signup form
+// ----- Signup -----
+
 app.get("/signup", (req, res) => {
   res.send(signupFormHTML(null));
 });
 
-// Handle signup submit
 app.post("/signup", (req, res) => {
   const { shopName, ownerName, email, city } = req.body;
 
@@ -389,7 +696,10 @@ app.post("/signup", (req, res) => {
     ownerName: ownerName || "",
     email,
     city: city || "",
-    createdAt: new Date().toISOString()
+    adminSecret,
+    createdAt: new Date().toISOString(),
+    barbers: defaultBarbers(),
+    services: defaultServices()
   };
 
   shops.push(shop);
@@ -398,15 +708,15 @@ app.post("/signup", (req, res) => {
   const protocol = req.protocol;
   const bookingUrl = `${protocol}://${host}/book/${id}`;
   const apiUrl = `${protocol}://${host}/api/shops/${id}/bookings`;
+  const dashboardUrl = `${protocol}://${host}/dashboard/shops/${id}`;
 
-  res.send(signupSuccessHTML(shop, adminSecret, bookingUrl, apiUrl));
+  res.send(signupSuccessHTML(shop, bookingUrl, apiUrl, dashboardUrl));
 });
 
-// Show booking form for a shop
-app.get("/book/:shopId", (req, res) => {
-  const shopId = req.params.shopId;
-  const shop = shops.find((s) => s.id === shopId);
+// ----- Customer booking -----
 
+app.get("/book/:shopId", (req, res) => {
+  const shop = findShop(req.params.shopId);
   if (!shop) {
     return res
       .status(404)
@@ -426,11 +736,8 @@ app.get("/book/:shopId", (req, res) => {
   res.send(bookingFormHTML(shop, null));
 });
 
-// Handle booking submit
 app.post("/book/:shopId", (req, res) => {
-  const shopId = req.params.shopId;
-  const shop = shops.find((s) => s.id === shopId);
-
+  const shop = findShop(req.params.shopId);
   if (!shop) {
     return res
       .status(404)
@@ -460,7 +767,6 @@ app.post("/book/:shopId", (req, res) => {
 
   let isoDateTime;
   try {
-    // Expect date as YYYY-MM-DD and time as HH:MM
     const combined = `${date}T${time}:00`;
     isoDateTime = new Date(combined).toISOString();
   } catch (e) {
@@ -469,7 +775,7 @@ app.post("/book/:shopId", (req, res) => {
 
   const booking = {
     id: generateId("bk"),
-    shopId,
+    shopId: shop.id,
     clientName,
     clientPhone,
     barberName: barberName || null,
@@ -483,9 +789,127 @@ app.post("/book/:shopId", (req, res) => {
   res.send(bookingThanksHTML(shop));
 });
 
-// API for iPad app – list bookings for a shop
+// ----- Owner dashboard -----
+
+app.get("/dashboard", (req, res) => {
+  res.send(dashboardLoginHTML(null));
+});
+
+app.post("/dashboard", (req, res) => {
+  const { email, shopId, adminSecret } = req.body;
+
+  const shop = shops.find(
+    (s) => s.id === shopId && s.email === email && s.adminSecret === adminSecret
+  );
+
+  if (!shop) {
+    return res.send(
+      dashboardLoginHTML("We couldn't find a shop with that combination. Check your email, Shop ID and Admin secret.")
+    );
+  }
+
+  res.redirect(`/dashboard/shops/${shop.id}`);
+});
+
+app.get("/dashboard/shops/:shopId", (req, res) => {
+  const shop = findShop(req.params.shopId);
+  if (!shop) {
+    return res
+      .status(404)
+      .send(
+        htmlPage({
+          title: "Shop not found",
+          body: `<h1>Shop not found</h1>`
+        })
+      );
+  }
+
+  res.send(dashboardShopHTML(shop, null));
+});
+
+// Add barber
+app.post("/dashboard/shops/:shopId/barbers/add", (req, res) => {
+  const shop = findShop(req.params.shopId);
+  if (!shop) return res.redirect("/dashboard");
+
+  const { name } = req.body;
+  if (name && name.trim().length > 0) {
+    shop.barbers.push({
+      id: generateId("barber"),
+      name: name.trim()
+    });
+  }
+
+  res.redirect(`/dashboard/shops/${shop.id}`);
+});
+
+// Delete barber
+app.post("/dashboard/shops/:shopId/barbers/delete", (req, res) => {
+  const shop = findShop(req.params.shopId);
+  if (!shop) return res.redirect("/dashboard");
+
+  const { barberId } = req.body;
+  shop.barbers = shop.barbers.filter((b) => b.id !== barberId);
+
+  res.redirect(`/dashboard/shops/${shop.id}`);
+});
+
+// Add service
+app.post("/dashboard/shops/:shopId/services/add", (req, res) => {
+  const shop = findShop(req.params.shopId);
+  if (!shop) return res.redirect("/dashboard");
+
+  const { name, durationMinutes, price, isActive } = req.body;
+  if (!name || !name.trim()) {
+    return res.redirect(`/dashboard/shops/${shop.id}`);
+  }
+
+  const duration = parseInt(durationMinutes, 10) || 30;
+  const numericPrice = parseFloat(price) || 25;
+
+  shop.services.push({
+    id: generateId("svc"),
+    name: name.trim(),
+    durationMinutes: duration,
+    price: numericPrice,
+    isActive: isActive === "false" ? false : true
+  });
+
+  res.redirect(`/dashboard/shops/${shop.id}`);
+});
+
+// Update service (duration/price/status)
+app.post("/dashboard/shops/:shopId/services/update", (req, res) => {
+  const shop = findShop(req.params.shopId);
+  if (!shop) return res.redirect("/dashboard");
+
+  const { serviceId, durationMinutes, price, isActive } = req.body;
+  const svc = shop.services.find((s) => s.id === serviceId);
+  if (svc) {
+    const duration = parseInt(durationMinutes, 10);
+    const numericPrice = parseFloat(price);
+    if (!isNaN(duration)) svc.durationMinutes = duration;
+    if (!isNaN(numericPrice)) svc.price = numericPrice;
+    svc.isActive = isActive === "false" ? false : true;
+  }
+
+  res.redirect(`/dashboard/shops/${shop.id}`);
+});
+
+// (Optional) delete service could be added similar to barbers/delete
+
+// =====================
+// API endpoints for the iPad app
+// =====================
+
+// Bookings for a shop
 app.get("/api/shops/:shopId/bookings", (req, res) => {
   const shopId = req.params.shopId;
+  const shop = findShop(shopId);
+  if (!shop) {
+    return res.status(404).json({ error: "Shop not found" });
+  }
+
   const shopBookings = bookings.filter((b) => b.shopId === shopId);
 
   res.json(
@@ -501,9 +925,29 @@ app.get("/api/shops/:shopId/bookings", (req, res) => {
   );
 });
 
-// Simple healthcheck
+// Config for a shop: barbers & services
+app.get("/api/shops/:shopId/config", (req, res) => {
+  const shopId = req.params.shopId;
+  const shop = findShop(shopId);
+  if (!shop) {
+    return res.status(404).json({ error: "Shop not found" });
+  }
+
+  res.json({
+    shopId: shop.id,
+    name: shop.name,
+    barbers: shop.barbers,
+    services: shop.services
+  });
+});
+
+// Healthcheck
 app.get("/health", (req, res) => {
-  res.json({ ok: true, shops: shops.length, bookings: bookings.length });
+  res.json({
+    ok: true,
+    shops: shops.length,
+    bookings: bookings.length
+  });
 });
 
 // Start server
