@@ -88,159 +88,208 @@ function htmlPage({ title, body }) {
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
   :root {
-    --bg: #050510;
-    --card: #111322;
-    --accent: #4f46e5;
-    --accent-soft: rgba(79,70,229,0.08);
-    --border: rgba(255,255,255,0.06);
-    --text-main: #f9fafb;
-    --text-muted: #9ca3af;
+    --bg: #050505;
+    --card: #0f0f10;
+    --border: #2a2a2a;
+    --accent: #ffffff;
+    --accent-soft: #1a1a1a;
+    --text-main: #f5f5f5;
+    --text-muted: #9b9b9b;
   }
-  * { box-sizing: border-box; }
+
+  * {
+    box-sizing: border-box;
+  }
+
   body {
     margin: 0;
     min-height: 100vh;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
-    background: radial-gradient(circle at top, #1f2933 0, #020617 55%);
+    background: var(--bg);
     color: var(--text-main);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 24px;
   }
+
   .shell {
     width: 100%;
     max-width: 480px;
   }
+
   .card {
     background: var(--card);
-    border-radius: 24px;
+    border-radius: 20px;
     border: 1px solid var(--border);
-    padding: 24px 22px 20px;
-    box-shadow:
-      0 22px 60px rgba(0,0,0,0.55),
-      0 0 0 1px rgba(148,163,184,0.02);
+    padding: 22px 20px 18px;
   }
+
   h1 {
-    font-size: 1.3rem;
+    font-size: 1.35rem;
     margin: 0 0 4px;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
   }
+
+  h2 {
+    font-size: 0.95rem;
+    margin: 16px 0 4px;
+  }
+
   .subtitle {
     font-size: 0.8rem;
     color: var(--text-muted);
     margin-bottom: 16px;
   }
+
   form {
     display: flex;
     flex-direction: column;
     gap: 10px;
     margin-top: 8px;
   }
+
   label {
     font-size: 0.78rem;
     color: var(--text-muted);
     display: block;
     margin-bottom: 4px;
   }
-  input, textarea, select {
+
+  input,
+  textarea,
+  select {
     width: 100%;
     border-radius: 999px;
-    border: 1px solid rgba(148,163,184,0.45);
-    background: rgba(15,23,42,0.85);
+    border: 1px solid var(--border);
+    background: #050505;
     color: var(--text-main);
     font-size: 0.85rem;
-    padding: 10px 13px;
+    padding: 9px 12px;
     outline: none;
   }
+
   textarea {
-    border-radius: 14px;
+    border-radius: 12px;
     resize: vertical;
     min-height: 70px;
   }
-  input:focus, textarea:focus, select:focus {
+
+  input:focus,
+  textarea:focus,
+  select:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 1px rgba(79,70,229,0.5);
   }
+
   button {
     border-radius: 999px;
-    border: none;
-    background: linear-gradient(135deg, #4f46e5, #6366f1);
-    color: #f9fafb;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #000;
     font-weight: 600;
     font-size: 0.9rem;
-    padding: 11px 18px;
+    padding: 10px 16px;
     cursor: pointer;
     margin-top: 4px;
   }
-  button:hover { filter: brightness(1.08); }
+
+  button:hover {
+    filter: brightness(0.95);
+  }
+
   .pill {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 3px 9px;
+    padding: 3px 10px;
     border-radius: 999px;
-    background: rgba(15,23,42,0.95);
-    border: 1px solid rgba(148,163,184,0.3);
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
     font-size: 0.7rem;
     color: var(--text-muted);
     margin-bottom: 10px;
   }
+
   .pill-dot {
     width: 6px;
     height: 6px;
     border-radius: 999px;
-    background: #22c55e;
+    background: #ffffff;
   }
+
   .small {
     font-size: 0.75rem;
     color: var(--text-muted);
     margin-top: 8px;
   }
+
   .message {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     padding: 7px 10px;
     border-radius: 999px;
-    background: rgba(22,163,74,0.08);
-    border: 1px solid rgba(22,163,74,0.3);
-    color: #bbf7d0;
+    background: #080808;
+    border: 1px solid #3a3a3a;
+    color: var(--text-main);
     margin-bottom: 8px;
   }
+
   .message.error {
-    background: rgba(220,38,38,0.08);
-    border-color: rgba(220,38,38,0.4);
-    color: #fecaca;
+    border-color: #ff4b4b;
+    color: #ffb3b3;
   }
+
   .field-group {
     display: flex;
     gap: 8px;
   }
-  .field-group > div { flex: 1; }
+
+  .field-group > div {
+    flex: 1;
+  }
+
   code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-size: 0.75rem;
-    padding: 3px 6px;
+    padding: 4px 8px;
     border-radius: 999px;
-    background: rgba(15,23,42,0.9);
-    border: 1px dashed rgba(148,163,184,0.5);
+    background: #050505;
+    border: 1px solid var(--border);
+    display: inline-block;
   }
-  a { color: #a5b4fc; }
+
+  a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
   .row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 8px;
-    padding: 6px 0;
+    padding: 4px 0;
   }
+
+  .muted {
+    color: var(--text-muted);
+  }
+
   .chip {
     font-size: 0.7rem;
     padding: 2px 8px;
     border-radius: 999px;
-    border: 1px solid rgba(148,163,184,0.4);
+    border: 1px solid var(--border);
     color: var(--text-muted);
   }
-  .muted {
-    color: var(--text-muted);
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 16px 0;
   }
 </style>
 </head>
